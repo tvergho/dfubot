@@ -40,6 +40,7 @@ def handle_message(event, say):
         return
 
     results = s.search_title(title)
+    results = list(filter(lambda x : x['Extension'] != 'mobi', results))
     if not results or len(results) == 0:
         say('No results found')
         return
