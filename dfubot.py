@@ -6,6 +6,8 @@ from libgen_api import LibgenSearch
 from slack_sdk import WebClient
 import requests
 from dotenv import load_dotenv
+from flask import Flask
+from threading import Thread
 
 load_dotenv()
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -15,6 +17,7 @@ app = App(token=os.environ["SLACK_BOT_TOKEN"])
 handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
 client = WebClient(os.environ["SLACK_BOT_TOKEN"])
 s = LibgenSearch()
+flask_app = Flask(__name__)
 
 def parse_title_from_message(message):
     messages = []
@@ -78,5 +81,14 @@ def handle_message(event, say):
             i += 1
             continue
 
-if __name__ == "__main__":
+def run_flask():
+    flask_app.run(debug=True, port=os.environ['PORT'], host='0.0.0.0')
+
+def run_slack():
     handler.start()
+
+if __name__ == "__main__":
+    t2 = Thread(target = run_slack)
+
+    t2.start()
+    run_flask()
