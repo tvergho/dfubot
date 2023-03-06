@@ -8,7 +8,6 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 # Instantiate a Slackbot app with the Socket Mode handler
@@ -28,14 +27,17 @@ def parse_title_from_message(message):
 # Define a function to handle incoming messages
 @app.event("app_mention")
 def handle_message(event, say):
+    print(event)
     channel_id = event["channel"]
     message_text = event["text"]
     title = parse_title_from_message(message_text)
+
     if not title or title == "not found":
         return
 
     results = s.search_title(title)
     if not results or len(results) == 0:
+        say('No results found')
         return
 
     print(results)
