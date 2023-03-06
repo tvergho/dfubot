@@ -33,6 +33,7 @@ def handle_message(event, say):
     title = parse_title_from_message(message_text)
 
     if not title or title == "not found":
+        say('No title found')
         return
 
     results = s.search_title(title)
