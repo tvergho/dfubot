@@ -1,0 +1,6 @@
+slack_sdk>=3.0
+slack_bolt>=1.6.1
+certifi
+python-dotenv
+openai
+libgen_api
