@@ -40,8 +40,12 @@ def handle_message(event, say):
             say('No title found')
             return
 
-        results = s.search_title(title)
+        results = s.search_title_filtered(title, {'Extension': 'pdf'})
+        if not results or len(results) == 0:
+            results = s.search_title(title)
+
         results = list(filter(lambda x : x['Extension'] != 'mobi', results))
+
         if not results or len(results) == 0:
             say('No results found')
             return
@@ -83,6 +87,10 @@ def handle_message(event, say):
         print(e)
         say("Something went wrong")
         pass
+
+@flask_app.route("/")
+def hello_world():
+    return "Hello, World!"
 
 def run_flask():
     flask_app.run(debug=True, port=os.environ['PORT'], host='0.0.0.0')
