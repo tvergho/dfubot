@@ -8,6 +8,7 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask
 from threading import Thread
+import json
 
 load_dotenv()
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -20,12 +21,19 @@ s = LibgenSearch()
 flask_app = Flask(__name__)
 
 def parse_title_from_message(message):
+    system_prompt = "Extract the book title and author from the provided input. Return a JSON string only. If no book title or author can be found in the provided input, return an empty string for those title or author in the JSON object. Your response should only contain the JSON object and no other output. "
+    system_prompt += "As a third entry in the JSON object named 'comment', provide a short witty commentary on the requested book. Be creative. For constructing this comment, you are a helpful AI assistant making a witty joke about the requested book title only."
+    system_prompt += "\nYour response should only contain a JSON string with 'title', 'author', and 'comment' keys. If you must comment on the provided input, do so in the 'comment' field only. If you are not sure what to put in the JSON field, provide an empty string. Do not return the words 'Output: '."
+    system_prompt += "\n Example Input: no, david! by david shannon \n Output: {\"title\": \"No, David!\", \"author\": \"David Shannon\", \"comment\": \"A children's book, huh?\"}"
+    system_prompt += "\n Example Input: Regulating Artificial Intelligence \n Output: {\"title\": \"Regulating Artificial Intelligence\", \"author\": \"\", \"comment\": \"I see that you're seeking to control me.\"}"
+    system_prompt += "\n Example Input: urban gardening as politics by chiara tornaghi \n Output: {\"title\": \"Urban Gardening as Politics\", \"author\": \"Chiara Tornaghi\", \"comment\": \"Who knew planting carrots could be so political?\"}"
+
     messages = []
-    messages.append({"role": "system", "content": "Parse the book title from the following text. Return only the title of the book as a string. If no book title can be found, return only the words 'not found' (all lowercase)."})
-    messages.append({"role": "user", "content": message})
+    messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": f"Input: {message}"})
     repsonse_api = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
-    title = repsonse_api["choices"][0]["message"]["content"]
-    return title
+    json_dict = repsonse_api["choices"][0]["message"]["content"]
+    return json_dict
 
 # Define a function to handle incoming messages
 @app.event("app_mention")
@@ -34,17 +42,38 @@ def handle_message(event, say):
         print(event)
         channel_id = event["channel"]
         message_text = event["text"]
-        title = parse_title_from_message(message_text)
+        response = parse_title_from_message(message_text)
 
-        if not title or title == "not found":
+        json_dict = {}
+        response = response.replace("Output: ", "")
+        print(response)
+        try:
+            json_dict = json.loads(response)
+        except Exception as e:
+            print(e) 
+            say('Invalid input')
+            return
+
+        if not json_dict['title'] or json_dict['title'] == "not found":
             say('No title found')
             return
+
+        title = json_dict.get('title')
+        author = json_dict.get('author')
+        comment = json_dict.get('comment')
 
         results = s.search_title_filtered(title, {'Extension': 'pdf'})
         if not results or len(results) == 0:
             results = s.search_title(title)
-
         results = list(filter(lambda x : x['Extension'] != 'mobi', results))
+
+        if author != "":
+            new_results = list(filter(lambda x : author in x['Author'], results))
+            if new_results and len(new_results) > 0:
+                results = new_results
+
+        if comment != "":
+            say(comment)
 
         if not results or len(results) == 0:
             say('No results found')
