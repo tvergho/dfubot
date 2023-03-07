@@ -55,13 +55,16 @@ def handle_message(event, say):
             say('Invalid input')
             return
 
-        if not json_dict['title'] or json_dict['title'] == "not found":
-            say('No title found')
-            return
-
         title = json_dict.get('title')
         author = json_dict.get('author')
         comment = json_dict.get('comment')
+
+        if comment != "":
+            say(comment)
+
+        if not title or title == "not found":
+            say('No title found')
+            return
 
         results = s.search_title_filtered(title, {'Extension': 'pdf'})
         if not results or len(results) == 0:
@@ -72,9 +75,6 @@ def handle_message(event, say):
             new_results = list(filter(lambda x : author in x['Author'], results))
             if new_results and len(new_results) > 0:
                 results = new_results
-
-        if comment != "":
-            say(comment)
 
         if not results or len(results) == 0:
             say('No results found')
