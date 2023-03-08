@@ -40,17 +40,19 @@ def parse_title_from_message(message):
 @app.event("app_mention")
 def handle_message(event, say):
     try:
+        # Print for debugging and parse the message
         print(event)
         channel_id = event["channel"]
         message_text = event["text"]
         response = parse_title_from_message(message_text)
 
         json_dict = {}
-        response = response.replace("Output: ", "")
+        response = response.replace("Output: ", "") # Sometimes the output is prefixed with "Output: " by the model
         print(response)
         try:
             json_dict = json.loads(response)
         except Exception as e:
+            # The model didn't return a valid JSON string
             print(e) 
             say('Invalid input')
             return
@@ -59,34 +61,38 @@ def handle_message(event, say):
         author = json_dict.get('author')
         comment = json_dict.get('comment')
 
+        # Say the comment regardless
         if comment != "":
             say(comment)
 
+        # Return early if no title was found
         if not title or title == "not found":
             say('No title found')
             return
 
-        results = s.search_title_filtered(title, {'Extension': 'pdf'})
+        results = s.search_title_filtered(title, {'Extension': 'pdf'}) # Try to find PDFs first
         if not results or len(results) == 0:
-            results = s.search_title(title)
-        results = list(filter(lambda x : x['Extension'] != 'mobi', results))
+            results = s.search_title(title) # Do a regular title search
+        results = list(filter(lambda x : x['Extension'] != 'mobi', results)) # Filter out mobi files
 
+        # Filter by author if provided
         if author != "":
             new_results = list(filter(lambda x : author in x['Author'], results))
-            if new_results and len(new_results) > 0:
+            if new_results and len(new_results) > 0: # If that author filter returns results, use those
                 results = new_results
 
+        # Return early if no results were found
         if not results or len(results) == 0:
             say('No results found')
             return
 
+        # Get a list of download links to try
         print(results)
         download_links = s.resolve_download_links(results[0])
         print(download_links)
-
         download_links = list(download_links.values())
-        i = 0
 
+        i = 0
         while i < len(download_links):
             try:
                 download_link = download_links[i]
@@ -94,9 +100,11 @@ def handle_message(event, say):
                 res = requests.get(download_link, timeout=10)
 
                 if not res.ok:
+                    # If the download fails, try the next link
                     i += 1
                     continue
 
+                # Save the file temporarily and upload it to Slack
                 filename = f"{results[0]['Title']}.{results[0]['Extension']}"
                 with open(filename, 'wb') as f:
                     f.write(res.content)
@@ -107,13 +115,17 @@ def handle_message(event, say):
                     channels=channel_id,
                 )
                 print("Uploaded")
+
+                # Delete the file
                 os.remove(filename)
                 return
             except Exception as e:
+                # If the download fails, try the next link
                 print(e)
                 i += 1
                 continue
     except Exception as e:
+        # Global exception handler, so we don't break Render
         print(e)
         say("Something went wrong")
         pass
