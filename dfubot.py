@@ -124,10 +124,11 @@ def handle_message(event, say):
                 print(e)
                 i += 1
                 continue
+        say('Libgen error. Try again in a couple minutes.')
     except Exception as e:
         # Global exception handler, so we don't break Render
         print(e)
-        say("Something went wrong")
+        say("Something went wrong. Try again in a couple minutes.")
         pass
 
 @flask_app.route("/")
